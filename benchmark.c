@@ -58,7 +58,7 @@ int TCP_IPv4(const char *path)
         perror("Error");
         exit(1);
     }
-    struct sockaddr_in servaddr, servaddr2, cli;
+    struct sockaddr_in servaddr, cliaddr, cli;
     struct timeval tv, tv2; // for time measurment
     
     /* ~~~~~~~~~~~~~ SENDER ~~~~~~~~~~~~~ */
@@ -86,9 +86,9 @@ int TCP_IPv4(const char *path)
         perror("Error");
         exit(1);
     }
-    servaddr2.sin_family = AF_INET;
-    servaddr2.sin_port = htons(8080);
-    servaddr2.sin_addr.s_addr = inet_addr("127.0.0.1");
+    cliaddr.sin_family = AF_INET;
+    cliaddr.sin_port = htons(8080);
+    cliaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
     /* ~~~~~~~~~~~~~ RECEIVER ~~~~~~~~~~~~~ */
     /* ~~~~~~~~~~~~~ RECEIVER ~~~~~~~~~~~~~ */
     
@@ -97,7 +97,7 @@ int TCP_IPv4(const char *path)
         /* ~~~~~~~~~~~~~ RECEIVER ~~~~~~~~~~~~~ */
         /* ~~~~~~~~~~~~~ RECEIVER ~~~~~~~~~~~~~ */
         usleep(1000000); // wait 1 second for sender to start up
-        if (connect(sockfd2, (struct sockaddr*)&servaddr2, sizeof(servaddr2)) == -1)
+        if (connect(sockfd2, (struct sockaddr*)&cliaddr, sizeof(cliaddr)) == -1)
         {
             perror("Error");
             exit(-1);
@@ -130,7 +130,7 @@ int TCP_IPv4(const char *path)
         close(sockfd2);
         
         gettimeofday(&tv2,NULL);
-        printf("TCP / IPv4 Socket - end:\t%ld.%ld\n", tv2.tv_sec*1000000, tv2.tv_usec); // end time measure
+        printf("TCP / IPv4 Socket - end:\t%ld\n", tv2.tv_usec); // end time measure
         
         exit(0);
     }
@@ -148,8 +148,8 @@ int TCP_IPv4(const char *path)
         /* ~~~~~~~~~~~~~ SENDER ~~~~~~~~~~~~~ */
         /* ~~~~~~~~~~~~~ SENDER ~~~~~~~~~~~~~ */
         
-       gettimeofday(&tv,NULL);
-        printf("TCP / IPv4 Socket - start:\t%ld.%ld\n", tv.tv_sec*1000000, tv.tv_usec); // end time measure
+        gettimeofday(&tv,NULL);
+        printf("TCP / IPv4 Socket - start:\t%ld\n", tv.tv_usec); // end time measure
 
         while (1) // parent process sends data
         {
@@ -174,6 +174,7 @@ int TCP_IPv4(const char *path)
         }
         close(connfd);
         close(sockfd);
+        close(fd);
         wait(NULL);
     }
     return 0;
@@ -181,10 +182,9 @@ int TCP_IPv4(const char *path)
 
 int main()
 {
-    generate_data("data.txt", 100);
+    generate_data("data.txt", 100000);
     TCP_IPv4("data.txt");
     printf("SUCCESS!\n");
 
-    // struct timeval tv;
     return 0;
 }
