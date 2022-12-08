@@ -1,14 +1,18 @@
+#include <time.h>
+#include <errno.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+
 
 
 
@@ -44,7 +48,7 @@ int generate_data(char *path,int kb) // generate a file with random data
     return 0;
 }
 
-int transfer_data(const char *path)
+int TCP_IPv4(const char *path)
 {
     int fd = open(path, O_RDONLY);
     int sockfd, sockfd2, connfd, bytes_send, bytes_recv;
@@ -55,6 +59,7 @@ int transfer_data(const char *path)
         exit(1);
     }
     struct sockaddr_in servaddr, servaddr2, cli;
+    struct timeval tv, tv2; // for time measurment
     
     /* ~~~~~~~~~~~~~ SENDER ~~~~~~~~~~~~~ */
     /* ~~~~~~~~~~~~~ SENDER ~~~~~~~~~~~~~ */
@@ -113,7 +118,7 @@ int transfer_data(const char *path)
                 break;
             }
             char c = checksum(recvbuf, BUFSIZ);
-            printf("%d\n", c);
+            // printf("%d\n", c);
             if (c != 0) // validate data received
             {
                 printf("Error: checksum is not 0\n");
@@ -123,6 +128,10 @@ int transfer_data(const char *path)
             bzero(recvbuf, BUFSIZ);
         }
         close(sockfd2);
+        
+        gettimeofday(&tv2,NULL);
+        printf("TCP / IPv4 Socket - end:\t%ld.%ld\n", tv2.tv_sec*1000000, tv2.tv_usec); // end time measure
+        
         exit(0);
     }
     else
@@ -139,6 +148,9 @@ int transfer_data(const char *path)
         /* ~~~~~~~~~~~~~ SENDER ~~~~~~~~~~~~~ */
         /* ~~~~~~~~~~~~~ SENDER ~~~~~~~~~~~~~ */
         
+       gettimeofday(&tv,NULL);
+        printf("TCP / IPv4 Socket - start:\t%ld.%ld\n", tv.tv_sec*1000000, tv.tv_usec); // end time measure
+
         while (1) // parent process sends data
         {
             bytes_send = read(fd, sendbuf, BUFSIZ-1);   
@@ -170,7 +182,9 @@ int transfer_data(const char *path)
 int main()
 {
     generate_data("data.txt", 100);
-    transfer_data("data.txt");
+    TCP_IPv4("data.txt");
     printf("SUCCESS!\n");
+
+    // struct timeval tv;
     return 0;
 }
