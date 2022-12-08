@@ -11,4 +11,4 @@ benchmark.o: benchmark.c
 	$(CC) $(FLAGS) -c benchmark.c
 
 clean:
-	rm -f *.a *.o *.so *.gch benchmark
+	rm -f *.a *.o *.so *.gch *.sock benchmark

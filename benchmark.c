@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/un.h>
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -13,6 +14,8 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#define CLIENT_SOCK_FILE "client.sock"
+#define SERVER_SOCK_FILE "server.sock"
 
 
 
@@ -53,57 +56,26 @@ int TCP_IPv4(const char *path)
     int fd = open(path, O_RDONLY);
     int sockfd, sockfd2, connfd, bytes_send, bytes_recv;
     char recvbuf[BUFSIZ] = {'\0'}, sendbuf[BUFSIZ] = {'\0'};
-    if ((sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1)
-    {
-        perror("Error");
-        exit(1);
-    }
     struct sockaddr_in servaddr, cliaddr, cli;
     struct timeval tv, tv2; // for time measurment
     
-    /* ~~~~~~~~~~~~~ SENDER ~~~~~~~~~~~~~ */
-    /* ~~~~~~~~~~~~~ SENDER ~~~~~~~~~~~~~ */
-    servaddr.sin_family = AF_INET;
-    servaddr.sin_port = htons(8080);
-    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    if ((bind(sockfd, (struct sockaddr*)&servaddr, sizeof(servaddr))) == -1)
-    {
-        perror("Error");
-        exit(-1);
-    }
-    if ((listen(sockfd, 1)) == -1)
-    {
-        perror("Error");
-        exit(-1);
-    }
-    /* ~~~~~~~~~~~~~ SENDER ~~~~~~~~~~~~~ */
-    /* ~~~~~~~~~~~~~ SENDER ~~~~~~~~~~~~~ */
-
-    /* ~~~~~~~~~~~~~ RECEIVER ~~~~~~~~~~~~~ */
-    /* ~~~~~~~~~~~~~ RECEIVER ~~~~~~~~~~~~~ */
-    if ((sockfd2 = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1)
-    {
-        perror("Error");
-        exit(1);
-    }
-    cliaddr.sin_family = AF_INET;
-    cliaddr.sin_port = htons(8080);
-    cliaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
-    /* ~~~~~~~~~~~~~ RECEIVER ~~~~~~~~~~~~~ */
-    /* ~~~~~~~~~~~~~ RECEIVER ~~~~~~~~~~~~~ */
-    
     if (!fork()) // child process
     {
-        /* ~~~~~~~~~~~~~ RECEIVER ~~~~~~~~~~~~~ */
-        /* ~~~~~~~~~~~~~ RECEIVER ~~~~~~~~~~~~~ */
-        usleep(1000000); // wait 1 second for sender to start up
+        if ((sockfd2 = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1)
+        {
+            perror("Error");
+            exit(1);
+        }
+        cliaddr.sin_family = AF_INET;
+        cliaddr.sin_port = htons(8080);
+        cliaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+        usleep(10000); // wait 0.01 second for sender to start up
         if (connect(sockfd2, (struct sockaddr*)&cliaddr, sizeof(cliaddr)) == -1)
         {
             perror("Error");
             exit(-1);
         }
-        /* ~~~~~~~~~~~~~ RECEIVER ~~~~~~~~~~~~~ */
-        /* ~~~~~~~~~~~~~ RECEIVER ~~~~~~~~~~~~~ */
         
         while(1) // child process receives data
         {
@@ -136,8 +108,26 @@ int TCP_IPv4(const char *path)
     }
     else
     {
-        /* ~~~~~~~~~~~~~ SENDER ~~~~~~~~~~~~~ */
-        /* ~~~~~~~~~~~~~ SENDER ~~~~~~~~~~~~~ */
+        if ((sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1)
+        {
+            perror("Error");
+            exit(1);
+        }
+        
+        servaddr.sin_family = AF_INET;
+        servaddr.sin_port = htons(8080);
+        servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+        if ((bind(sockfd, (struct sockaddr*)&servaddr, sizeof(servaddr))) == -1)
+        {
+            perror("Error");
+            exit(-1);
+        }
+        if ((listen(sockfd, 1)) == -1)
+        {
+            perror("Error");
+            exit(-1);
+        }
+
         int len = sizeof(cli);
         connfd = accept(sockfd, (struct sockaddr*)&cli, (socklen_t*)&len);
         if (connfd == -1)
@@ -145,11 +135,9 @@ int TCP_IPv4(const char *path)
             perror("Error");
             exit(-1);
         }
-        /* ~~~~~~~~~~~~~ SENDER ~~~~~~~~~~~~~ */
-        /* ~~~~~~~~~~~~~ SENDER ~~~~~~~~~~~~~ */
         
         gettimeofday(&tv,NULL);
-        printf("TCP / IPv4 Socket - start:\t%ld\n", tv.tv_usec); // end time measure
+        printf("TCP / IPv4 Socket - start:\t%ld\n", tv.tv_usec); // start time measure
 
         while (1) // parent process sends data
         {
@@ -184,6 +172,7 @@ int main()
 {
     generate_data("data.txt", 100000);
     TCP_IPv4("data.txt");
+    // UDS("data.txt");
     printf("SUCCESS!\n");
 
     return 0;
