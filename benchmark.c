@@ -282,11 +282,132 @@ int UDS(const char *path)
     return 0;
 }
 
+int UDP_IPv6(const char *path)
+{
+    int fd = open(path, O_RDONLY);
+    int sockfd, sockfd2, bytes_send, bytes_recv;
+    char recvbuf[BUFSIZ] = {'\0'}, sendbuf[BUFSIZ] = {'\0'};
+    struct sockaddr_in6 servaddr, cliaddr, serv;
+    struct timeval tv, tv2; // for time measurment
+    
+    if (!fork()) // child process
+    {
+        if ((sockfd2 = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP)) == -1)
+        {
+            perror("Error");
+            exit(1);
+        }
+        servaddr.sin6_family = AF_INET6;
+        servaddr.sin6_port = htons(8081);
+        inet_pton(AF_INET6, "::1", &(servaddr.sin6_addr));
+
+        if (sendto(sockfd2, "init", 5, 0, (struct sockaddr*)&servaddr, sizeof(servaddr)) == -1)
+        {
+            perror("Error");
+            exit(1);
+        }
+        
+        socklen_t len = sizeof(servaddr);
+        while(1) // child process receives data
+        {
+            bytes_recv = recvfrom(sockfd2, recvbuf, BUFSIZ, 0, (struct sockaddr*)&servaddr, &len); // receive data  
+            if (bytes_recv== -1)
+            {
+                perror("Error");
+                exit(1);
+            }
+            else if (strcmp(recvbuf, "end") == 0)
+            {
+                break;
+            }
+            char c = checksum(recvbuf, BUFSIZ);
+            // printf("%d\n", c);
+            if (c != 0) // validate data received
+            {
+                printf("Error: checksum is not 0\n");
+                printf("%s\n", recvbuf);
+                exit(1);
+            }
+            bzero(recvbuf, BUFSIZ);
+        }
+        close(sockfd2);
+        
+        gettimeofday(&tv2,NULL);
+        printf("UDP / IPv6 - end:\t%ld\n", tv2.tv_usec); // end time measure
+        
+        exit(0);
+    }
+    else
+    {
+        if ((sockfd = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP)) == -1)
+        {
+            perror("Error");
+            exit(1);
+        }
+        memset(&serv, 0, sizeof(serv));
+        memset(&cliaddr, 0, sizeof(cliaddr));
+        
+        serv.sin6_family = AF_INET6;
+        serv.sin6_port = htons(8081);
+        serv.sin6_addr = in6addr_any;
+        if ((bind(sockfd, (struct sockaddr*)&serv, sizeof(serv))) == -1)
+        {
+            perror("Error");
+            exit(1);
+        }
+        socklen_t len = sizeof(cliaddr);
+        if (recvfrom(sockfd, recvbuf, 5, MSG_WAITALL, ( struct sockaddr *) &cliaddr, &len) == -1)
+        {
+            perror("Error");
+            exit(1);
+        }
+
+        usleep(100000); // wait 0.1 second for receiver to start up
+        bzero(recvbuf, BUFSIZ);
+        gettimeofday(&tv,NULL);
+        printf("UDP / IPv6 - start:\t%ld\n", tv.tv_usec); // start time measure
+
+        while (1) // parent process sends data
+        {
+            bytes_send = read(fd, sendbuf, BUFSIZ-1);
+            if (bytes_send == -1)
+            {
+                perror("Error");
+                exit(1);
+            }
+            else if (bytes_send == 0)
+            {
+                break;
+            }
+
+            sendbuf[BUFSIZ-1] = checksum(sendbuf, BUFSIZ-1);
+
+            if (sendto(sockfd, sendbuf, BUFSIZ, 0, (struct sockaddr*)&cliaddr, sizeof(cliaddr)) == -1) // send data
+            {
+                perror("Error");
+                exit(1);
+            }
+            bzero(sendbuf, BUFSIZ);
+        }
+        bzero(sendbuf, BUFSIZ);
+        if (sendto(sockfd, "end", 4, 0, (struct sockaddr*)&cliaddr, sizeof(cliaddr)) == -1) // send data
+        {
+            perror("Error");
+            exit(1);
+        }
+        wait(NULL);
+        close(sockfd);
+        close(fd);
+    }
+    return 0;
+}
+
 int main()
 {
     generate_data("data.txt", 100000);
     TCP_IPv4("data.txt");
     UDS("data.txt");
+    UDP_IPv6("data.txt");
     printf("SUCCESS!\n");
 
     return 0;
