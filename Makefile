@@ -11,4 +11,4 @@ benchmark.o: benchmark.c
 	$(CC) $(FLAGS) -c benchmark.c
 
 clean:
-	rm -f *.a *.o *.so *.gch socket benchmark
+	rm -f *.a *.o *.so *.gch socket clisocket servsocket benchmark

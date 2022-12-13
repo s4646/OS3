@@ -15,6 +15,8 @@
 #include <netinet/in.h>
 
 #define UDS_SOCKET "socket"
+#define CLISOCKET "clisocket"
+#define SERVSOCKET "servsocket"
 
 
 
@@ -167,7 +169,7 @@ int TCP_IPv4(const char *path)
     return 0;
 }
 
-int UDS(const char *path)
+int UDS_TCP(const char *path)
 {
     int fd = open(path, O_RDONLY);
     int sockfd, sockfd2, connfd, bytes_send, bytes_recv;
@@ -297,20 +299,20 @@ int UDP_IPv6(const char *path)
             perror("Error");
             exit(1);
         }
-        servaddr.sin6_family = AF_INET6;
-        servaddr.sin6_port = htons(8081);
-        inet_pton(AF_INET6, "::1", &(servaddr.sin6_addr));
+        serv.sin6_family = AF_INET6;
+        serv.sin6_port = htons(8081);
+        inet_pton(AF_INET6, "::1", &(serv.sin6_addr));
 
-        if (sendto(sockfd2, "init", 5, 0, (struct sockaddr*)&servaddr, sizeof(servaddr)) == -1)
+        if (sendto(sockfd2, "init", 5, 0, (struct sockaddr*)&serv, sizeof(serv)) == -1)
         {
             perror("Error");
             exit(1);
         }
         
-        socklen_t len = sizeof(servaddr);
+        socklen_t len = sizeof(serv);
         while(1) // child process receives data
         {
-            bytes_recv = recvfrom(sockfd2, recvbuf, BUFSIZ, 0, (struct sockaddr*)&servaddr, &len); // receive data  
+            bytes_recv = recvfrom(sockfd2, recvbuf, BUFSIZ, 0, (struct sockaddr*)&serv, &len); // receive data  
             if (bytes_recv== -1)
             {
                 perror("Error");
@@ -344,13 +346,13 @@ int UDP_IPv6(const char *path)
             perror("Error");
             exit(1);
         }
-        memset(&serv, 0, sizeof(serv));
+        memset(&servaddr, 0, sizeof(servaddr));
         memset(&cliaddr, 0, sizeof(cliaddr));
         
-        serv.sin6_family = AF_INET6;
-        serv.sin6_port = htons(8081);
-        serv.sin6_addr = in6addr_any;
-        if ((bind(sockfd, (struct sockaddr*)&serv, sizeof(serv))) == -1)
+        servaddr.sin6_family = AF_INET6;
+        servaddr.sin6_port = htons(8081);
+        servaddr.sin6_addr = in6addr_any;
+        if ((bind(sockfd, (struct sockaddr*)&servaddr, sizeof(servaddr))) == -1)
         {
             perror("Error");
             exit(1);
@@ -402,12 +404,130 @@ int UDP_IPv6(const char *path)
     return 0;
 }
 
+int UDS_UDP(const char *path) // https://stackoverflow.com/questions/3324619/unix-domain-socket-using-datagram-communication-between-one-server-process-and
+{
+    int fd = open(path, O_RDONLY);
+    int servsock, clisock, bytes_send, bytes_recv;
+    char sendbuf[BUFSIZ] = {'\0'}, recvbuf[BUFSIZ] = {'\0'};
+    struct sockaddr_un server_addr, client_addr;
+    struct timeval tv, tv2; // for time measurment
+
+    if (!fork())
+    {
+        if ((clisock = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0)
+        {
+            perror("Error: socket");
+            exit(1);
+        }
+
+        memset(&client_addr, 0, sizeof(client_addr));
+        client_addr.sun_family = AF_UNIX;
+        strcpy(client_addr.sun_path, CLISOCKET);
+        if (bind(clisock, (struct sockaddr *)&client_addr, sizeof(server_addr)) == -1)
+        {
+            perror("Error: bind");
+            exit(1);
+        }
+
+        memset(&server_addr, 0, sizeof(server_addr));
+        server_addr.sun_family = AF_UNIX;
+        strcpy(server_addr.sun_path, SERVSOCKET);
+        if (connect(clisock, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1)
+        {
+            perror("Error: connect");
+            exit(1);
+        }
+
+        gettimeofday(&tv2,NULL);
+        printf("UDS / DGRAM - start:\t%ld\n", tv2.tv_usec); // start time measure
+        while(1)
+        {
+            bytes_send = read(fd, sendbuf, BUFSIZ);
+            if (bytes_send == -1)
+            {
+                perror("Error: read");
+                exit(1);
+            }
+            if (bytes_send == 0)
+            {
+                break;
+            }
+
+            sendbuf[BUFSIZ-1] = checksum(sendbuf, BUFSIZ-1);
+
+            if (send(clisock, sendbuf, BUFSIZ, 0) == -1)
+            {
+                perror("Error: send");
+                exit(1);
+            }
+            bzero(sendbuf, BUFSIZ);
+        }
+        if (send(clisock, "end", 4, 0) == -1)
+        {
+            perror("Error: send");
+            exit(1);
+        }
+        close(clisock);
+        close(fd);
+        exit(0);
+    }
+
+    else
+    {
+        if ((servsock = socket(AF_UNIX, SOCK_DGRAM, 0)) == -1)
+        {
+		    perror("Error: socket");
+            exit(1);
+	    }
+
+        memset(&client_addr, 0, sizeof(client_addr));
+        client_addr.sun_family = AF_UNIX;
+        strcpy(client_addr.sun_path, CLISOCKET);
+        memset(&server_addr, 0, sizeof(server_addr));
+        server_addr.sun_family = AF_UNIX;
+        strcpy(server_addr.sun_path, SERVSOCKET);
+        if (bind(servsock, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1)
+        {
+            perror("Error: bind");
+            exit(1);
+        }
+
+        socklen_t len = sizeof(client_addr);
+        while(1)
+        {
+            bytes_recv = recvfrom(servsock, recvbuf, BUFSIZ, 0, (struct sockaddr*)&client_addr, &len);
+            if (bytes_recv == -1)
+            {
+                perror("Error: recvfrom");
+                exit(1);
+            }
+            if (strcmp(recvbuf, "end") == 0)
+            {
+                break;
+            }
+            if (checksum(recvbuf, BUFSIZ) !=0)
+            {
+                printf("Error: checksum is not 0\n");
+                exit(1);
+            }
+            bzero(recvbuf, BUFSIZ);
+        }
+
+        gettimeofday(&tv, NULL);
+        printf("UDS / DGRAM - end:\t%ld\n", tv.tv_usec); // end time measure
+        wait(NULL);
+        close(servsock);
+    }
+    return 0;
+}
+
 int main()
 {
     generate_data("data.txt", 100000);
     TCP_IPv4("data.txt");
-    UDS("data.txt");
+    UDS_TCP("data.txt");
     UDP_IPv6("data.txt");
+    UDS_UDP("data.txt");
     printf("SUCCESS!\n");
 
     return 0;
