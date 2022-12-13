@@ -103,7 +103,7 @@ int TCP_IPv4(const char *path)
         close(sockfd2);
         
         gettimeofday(&tv2,NULL);
-        printf("TCP / IPv4 Socket - end:\t%ld\n", tv2.tv_usec); // end time measure
+        printf("TCP / IPv4 Socket - end:\t%ld.%ld\n", tv2.tv_sec, tv2.tv_usec); // end time measure
         
         exit(0);
     }
@@ -138,7 +138,7 @@ int TCP_IPv4(const char *path)
         }
         
         gettimeofday(&tv,NULL);
-        printf("TCP / IPv4 Socket - start:\t%ld\n", tv.tv_usec); // start time measure
+        printf("TCP / IPv4 Socket - start:\t%ld.%ld\n", tv.tv_sec, tv.tv_usec); // start time measure
 
         while (1) // parent process sends data
         {
@@ -219,7 +219,7 @@ int UDS_TCP(const char *path)
         close(sockfd2);
         
         gettimeofday(&tv2,NULL);
-        printf("UDS - end:\t%ld\n", tv2.tv_usec); // end time measure
+        printf("UDS / STREAM - end:\t%ld.%ld\n", tv2.tv_sec, tv2.tv_usec); // end time measure
         
         exit(0);
     }
@@ -253,7 +253,7 @@ int UDS_TCP(const char *path)
         }
         
         gettimeofday(&tv,NULL);
-        printf("UDS - start:\t%ld\n", tv.tv_usec); // start time measure
+        printf("UDS / STREAM - start:\t%ld.%ld\n", tv.tv_sec, tv.tv_usec); // start time measure
 
         while (1) // parent process sends data
         {
@@ -335,7 +335,7 @@ int UDP_IPv6(const char *path)
         close(sockfd2);
         
         gettimeofday(&tv2,NULL);
-        printf("UDP / IPv6 - end:\t%ld\n", tv2.tv_usec); // end time measure
+        printf("UDP / IPv6 - end:\t%ld.%ld\n", tv2.tv_sec, tv2.tv_usec); // end time measure
         
         exit(0);
     }
@@ -367,7 +367,7 @@ int UDP_IPv6(const char *path)
         usleep(100000); // wait 0.1 second for receiver to start up
         bzero(recvbuf, BUFSIZ);
         gettimeofday(&tv,NULL);
-        printf("UDP / IPv6 - start:\t%ld\n", tv.tv_usec); // start time measure
+        printf("UDP / IPv6 - start:\t%ld.%ld\n", tv.tv_sec, tv.tv_usec); // start time measure
 
         while (1) // parent process sends data
         {
@@ -439,7 +439,7 @@ int UDS_UDP(const char *path) // https://stackoverflow.com/questions/3324619/uni
         }
 
         gettimeofday(&tv2,NULL);
-        printf("UDS / DGRAM - start:\t%ld\n", tv2.tv_usec); // start time measure
+        printf("UDS / DGRAM - start:\t%ld.%ld\n", tv2.tv_sec, tv2.tv_usec); // start time measure
         while(1)
         {
             bytes_send = read(fd, sendbuf, BUFSIZ);
@@ -514,7 +514,7 @@ int UDS_UDP(const char *path) // https://stackoverflow.com/questions/3324619/uni
         }
 
         gettimeofday(&tv, NULL);
-        printf("UDS / DGRAM - end:\t%ld\n", tv.tv_usec); // end time measure
+        printf("UDS / DGRAM - end:\t%ld.%ld\n", tv.tv_sec, tv.tv_usec); // end time measure
         wait(NULL);
         close(servsock);
     }
