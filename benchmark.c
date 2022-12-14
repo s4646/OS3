@@ -523,6 +523,46 @@ int UDS_UDP(const char *path) // https://stackoverflow.com/questions/3324619/uni
     return 0;
 }
 
+int mmap_comm(const char *path)
+{
+    FILE *fp = fopen(path, "r");
+    fseek(fp, 0L, SEEK_END);
+    size_t size = ftell(fp);
+    fclose(fp);
+    struct timeval tv, tv2;
+
+    int fd = open(path, O_RDWR);
+    char *file = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0);
+    if (file == MAP_FAILED)
+    {
+        perror("Error: mmap");
+        exit(1);
+    }
+    if (!fork())
+    {
+        gettimeofday(&tv2, NULL);
+        printf("MMAP - start:\t%ld.%ld\n", tv2.tv_sec, tv2.tv_usec); // start time measure
+        for (size_t i = 0; i < size; i++)
+        {
+            file++;
+        }
+        exit(0);
+    }
+    else
+    {
+        wait(NULL);
+        if (munmap(file, size) == -1)
+        {
+            perror("Error: munmap");
+            exit(1);
+        }
+        gettimeofday(&tv, NULL);
+        printf("MMAP - end:\t%ld.%ld\n", tv.tv_sec, tv.tv_usec); // start time measure
+        close(fd);
+    }
+    return 0;
+}
+
 int main()
 {
     generate_data("data.txt", 100000);
@@ -530,6 +570,7 @@ int main()
     UDS_TCP("data.txt");
     UDP_IPv6("data.txt");
     UDS_UDP("data.txt");
+    mmap_comm("data.txt");
     printf("SUCCESS!\n");
 
     return 0;
