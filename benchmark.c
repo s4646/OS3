@@ -9,6 +9,7 @@
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
@@ -424,7 +425,7 @@ int UDS_UDP(const char *path) // https://stackoverflow.com/questions/3324619/uni
         memset(&client_addr, 0, sizeof(client_addr));
         client_addr.sun_family = AF_UNIX;
         strcpy(client_addr.sun_path, CLISOCKET);
-        if (bind(clisock, (struct sockaddr *)&client_addr, sizeof(server_addr)) == -1)
+        if (bind(clisock, (struct sockaddr *)&client_addr, sizeof(client_addr)) == -1)
         {
             perror("Error: bind");
             exit(1);
