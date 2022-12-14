@@ -1,8 +1,12 @@
-.PHONY = all clean
+.PHONY = all run clean
 CC = gcc
 FLAGS = -Wall -Werror -g
 
 all: benchmark
+
+run:
+	./benchmark
+	rm socket clisocket servsocket
 
 benchmark: benchmark.o
 	$(CC) benchmark.o $(FLAGS) -o benchmark

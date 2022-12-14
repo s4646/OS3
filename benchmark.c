@@ -17,6 +17,7 @@
 #define UDS_SOCKET "socket"
 #define CLISOCKET "clisocket"
 #define SERVSOCKET "servsocket"
+#define BUF_SIZE 128
 
 
 
@@ -56,7 +57,7 @@ int TCP_IPv4(const char *path)
 {
     int fd = open(path, O_RDONLY);
     int sockfd, sockfd2, connfd, bytes_send, bytes_recv;
-    char recvbuf[BUFSIZ] = {'\0'}, sendbuf[BUFSIZ] = {'\0'};
+    char recvbuf[BUF_SIZE] = {'\0'}, sendbuf[BUF_SIZE] = {'\0'};
     struct sockaddr_in servaddr, cliaddr, cli;
     struct timeval tv, tv2; // for time measurment
     
@@ -80,7 +81,7 @@ int TCP_IPv4(const char *path)
         
         while(1) // child process receives data
         {
-            bytes_recv = recv(sockfd2, recvbuf, BUFSIZ, 0); // receive data  
+            bytes_recv = recv(sockfd2, recvbuf, BUF_SIZE, 0); // receive data  
             if (bytes_recv== -1)
             {
                 perror("Error");
@@ -90,7 +91,7 @@ int TCP_IPv4(const char *path)
             {
                 break;
             }
-            char c = checksum(recvbuf, BUFSIZ);
+            char c = checksum(recvbuf, BUF_SIZE);
             // printf("%d\n", c);
             if (c != 0) // validate data received
             {
@@ -98,12 +99,12 @@ int TCP_IPv4(const char *path)
                 printf("%s\n", recvbuf);
                 exit(1);
             }
-            bzero(recvbuf, BUFSIZ);
+            bzero(recvbuf, BUF_SIZE);
         }
         close(sockfd2);
         
         gettimeofday(&tv2,NULL);
-        printf("TCP / IPv4 Socket - end:\t%ld.%ld\n", tv2.tv_sec, tv2.tv_usec); // end time measure
+        printf("TCP / IPv4 - end:\t%ld.%ld\n", tv2.tv_sec, tv2.tv_usec); // end time measure
         
         exit(0);
     }
@@ -138,11 +139,11 @@ int TCP_IPv4(const char *path)
         }
         
         gettimeofday(&tv,NULL);
-        printf("TCP / IPv4 Socket - start:\t%ld.%ld\n", tv.tv_sec, tv.tv_usec); // start time measure
+        printf("TCP / IPv4 - start:\t%ld.%ld\n", tv.tv_sec, tv.tv_usec); // start time measure
 
         while (1) // parent process sends data
         {
-            bytes_send = read(fd, sendbuf, BUFSIZ-1);   
+            bytes_send = read(fd, sendbuf, BUF_SIZE-1);   
             if (bytes_send == -1)
             {
                 perror("Error");
@@ -153,13 +154,13 @@ int TCP_IPv4(const char *path)
                 break;
             }
 
-            sendbuf[BUFSIZ-1] = checksum(sendbuf, BUFSIZ-1);
-            if (send(connfd, sendbuf, BUFSIZ, 0) == -1) // send data
+            sendbuf[BUF_SIZE-1] = checksum(sendbuf, BUF_SIZE-1);
+            if (send(connfd, sendbuf, BUF_SIZE, 0) == -1) // send data
             {
                 perror("Error");
                 exit(1);
             }
-            bzero(sendbuf, BUFSIZ);
+            bzero(sendbuf, BUF_SIZE);
         }
         close(connfd);
         close(sockfd);
@@ -173,7 +174,7 @@ int UDS_TCP(const char *path)
 {
     int fd = open(path, O_RDONLY);
     int sockfd, sockfd2, connfd, bytes_send, bytes_recv;
-    char recvbuf[BUFSIZ] = {'\0'}, sendbuf[BUFSIZ] = {'\0'};
+    char recvbuf[BUF_SIZE] = {'\0'}, sendbuf[BUF_SIZE] = {'\0'};
     struct sockaddr_un servaddr, cliaddr, cli;
     struct timeval tv, tv2; // for time measurment
     
@@ -196,7 +197,7 @@ int UDS_TCP(const char *path)
         
         while(1) // child process receives data
         {
-            bytes_recv = recv(sockfd2, recvbuf, BUFSIZ, 0); // receive data  
+            bytes_recv = recv(sockfd2, recvbuf, BUF_SIZE, 0); // receive data  
             if (bytes_recv== -1)
             {
                 perror("Error");
@@ -206,7 +207,7 @@ int UDS_TCP(const char *path)
             {
                 break;
             }
-            char c = checksum(recvbuf, BUFSIZ);
+            char c = checksum(recvbuf, BUF_SIZE);
             // printf("%d\n", c);
             if (c != 0) // validate data received
             {
@@ -214,7 +215,7 @@ int UDS_TCP(const char *path)
                 printf("%s\n", recvbuf);
                 exit(1);
             }
-            bzero(recvbuf, BUFSIZ);
+            bzero(recvbuf, BUF_SIZE);
         }
         close(sockfd2);
         
@@ -257,7 +258,7 @@ int UDS_TCP(const char *path)
 
         while (1) // parent process sends data
         {
-            bytes_send = read(fd, sendbuf, BUFSIZ-1);   
+            bytes_send = read(fd, sendbuf, BUF_SIZE-1);   
             if (bytes_send == -1)
             {
                 perror("Error");
@@ -268,13 +269,13 @@ int UDS_TCP(const char *path)
                 break;
             }
 
-            sendbuf[BUFSIZ-1] = checksum(sendbuf, BUFSIZ-1);
-            if (send(connfd, sendbuf, BUFSIZ, 0) == -1) // send data
+            sendbuf[BUF_SIZE-1] = checksum(sendbuf, BUF_SIZE-1);
+            if (send(connfd, sendbuf, BUF_SIZE, 0) == -1) // send data
             {
                 perror("Error");
                 exit(1);
             }
-            bzero(sendbuf, BUFSIZ);
+            bzero(sendbuf, BUF_SIZE);
         }
         close(connfd);
         close(sockfd);
@@ -288,7 +289,7 @@ int UDP_IPv6(const char *path)
 {
     int fd = open(path, O_RDONLY);
     int sockfd, sockfd2, bytes_send, bytes_recv;
-    char recvbuf[BUFSIZ] = {'\0'}, sendbuf[BUFSIZ] = {'\0'};
+    char recvbuf[BUF_SIZE] = {'\0'}, sendbuf[BUF_SIZE] = {'\0'};
     struct sockaddr_in6 servaddr, cliaddr, serv;
     struct timeval tv, tv2; // for time measurment
     
@@ -312,7 +313,7 @@ int UDP_IPv6(const char *path)
         socklen_t len = sizeof(serv);
         while(1) // child process receives data
         {
-            bytes_recv = recvfrom(sockfd2, recvbuf, BUFSIZ, 0, (struct sockaddr*)&serv, &len); // receive data  
+            bytes_recv = recvfrom(sockfd2, recvbuf, BUF_SIZE, 0, (struct sockaddr*)&serv, &len); // receive data  
             if (bytes_recv== -1)
             {
                 perror("Error");
@@ -322,7 +323,7 @@ int UDP_IPv6(const char *path)
             {
                 break;
             }
-            char c = checksum(recvbuf, BUFSIZ);
+            char c = checksum(recvbuf, BUF_SIZE);
             // printf("%d\n", c);
             if (c != 0) // validate data received
             {
@@ -330,7 +331,7 @@ int UDP_IPv6(const char *path)
                 printf("%s\n", recvbuf);
                 exit(1);
             }
-            bzero(recvbuf, BUFSIZ);
+            bzero(recvbuf, BUF_SIZE);
         }
         close(sockfd2);
         
@@ -365,13 +366,13 @@ int UDP_IPv6(const char *path)
         }
 
         usleep(100000); // wait 0.1 second for receiver to start up
-        bzero(recvbuf, BUFSIZ);
+        bzero(recvbuf, BUF_SIZE);
         gettimeofday(&tv,NULL);
         printf("UDP / IPv6 - start:\t%ld.%ld\n", tv.tv_sec, tv.tv_usec); // start time measure
 
         while (1) // parent process sends data
         {
-            bytes_send = read(fd, sendbuf, BUFSIZ-1);
+            bytes_send = read(fd, sendbuf, BUF_SIZE-1);
             if (bytes_send == -1)
             {
                 perror("Error");
@@ -382,16 +383,16 @@ int UDP_IPv6(const char *path)
                 break;
             }
 
-            sendbuf[BUFSIZ-1] = checksum(sendbuf, BUFSIZ-1);
+            sendbuf[BUF_SIZE-1] = checksum(sendbuf, BUF_SIZE-1);
 
-            if (sendto(sockfd, sendbuf, BUFSIZ, 0, (struct sockaddr*)&cliaddr, sizeof(cliaddr)) == -1) // send data
+            if (sendto(sockfd, sendbuf, BUF_SIZE, 0, (struct sockaddr*)&cliaddr, sizeof(cliaddr)) == -1) // send data
             {
                 perror("Error");
                 exit(1);
             }
-            bzero(sendbuf, BUFSIZ);
+            bzero(sendbuf, BUF_SIZE);
         }
-        bzero(sendbuf, BUFSIZ);
+        bzero(sendbuf, BUF_SIZE);
         if (sendto(sockfd, "end", 4, 0, (struct sockaddr*)&cliaddr, sizeof(cliaddr)) == -1) // send data
         {
             perror("Error");
@@ -408,7 +409,7 @@ int UDS_UDP(const char *path) // https://stackoverflow.com/questions/3324619/uni
 {
     int fd = open(path, O_RDONLY);
     int servsock, clisock, bytes_send, bytes_recv;
-    char sendbuf[BUFSIZ] = {'\0'}, recvbuf[BUFSIZ] = {'\0'};
+    char sendbuf[BUF_SIZE] = {'\0'}, recvbuf[BUF_SIZE] = {'\0'};
     struct sockaddr_un server_addr, client_addr;
     struct timeval tv, tv2; // for time measurment
 
@@ -442,7 +443,7 @@ int UDS_UDP(const char *path) // https://stackoverflow.com/questions/3324619/uni
         printf("UDS / DGRAM - start:\t%ld.%ld\n", tv2.tv_sec, tv2.tv_usec); // start time measure
         while(1)
         {
-            bytes_send = read(fd, sendbuf, BUFSIZ);
+            bytes_send = read(fd, sendbuf, BUF_SIZE);
             if (bytes_send == -1)
             {
                 perror("Error: read");
@@ -453,14 +454,14 @@ int UDS_UDP(const char *path) // https://stackoverflow.com/questions/3324619/uni
                 break;
             }
 
-            sendbuf[BUFSIZ-1] = checksum(sendbuf, BUFSIZ-1);
+            sendbuf[BUF_SIZE-1] = checksum(sendbuf, BUF_SIZE-1);
 
-            if (send(clisock, sendbuf, BUFSIZ, 0) == -1)
+            if (send(clisock, sendbuf, BUF_SIZE, 0) == -1)
             {
                 perror("Error: send");
                 exit(1);
             }
-            bzero(sendbuf, BUFSIZ);
+            bzero(sendbuf, BUF_SIZE);
         }
         if (send(clisock, "end", 4, 0) == -1)
         {
@@ -495,7 +496,7 @@ int UDS_UDP(const char *path) // https://stackoverflow.com/questions/3324619/uni
         socklen_t len = sizeof(client_addr);
         while(1)
         {
-            bytes_recv = recvfrom(servsock, recvbuf, BUFSIZ, 0, (struct sockaddr*)&client_addr, &len);
+            bytes_recv = recvfrom(servsock, recvbuf, BUF_SIZE, 0, (struct sockaddr*)&client_addr, &len);
             if (bytes_recv == -1)
             {
                 perror("Error: recvfrom");
@@ -505,12 +506,12 @@ int UDS_UDP(const char *path) // https://stackoverflow.com/questions/3324619/uni
             {
                 break;
             }
-            if (checksum(recvbuf, BUFSIZ) !=0)
+            if (checksum(recvbuf, BUF_SIZE) !=0)
             {
                 printf("Error: checksum is not 0\n");
                 exit(1);
             }
-            bzero(recvbuf, BUFSIZ);
+            bzero(recvbuf, BUF_SIZE);
         }
 
         gettimeofday(&tv, NULL);
