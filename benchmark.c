@@ -523,7 +523,7 @@ int UDS_UDP(const char *path) // https://stackoverflow.com/questions/3324619/uni
     return 0;
 }
 
-int mmap_comm(const char *path)
+int mmap_comm(const char *path) // https://linuxhint.com/using_mmap_function_linux/
 {
     FILE *fp = fopen(path, "r");
     fseek(fp, 0L, SEEK_END);
@@ -557,7 +557,73 @@ int mmap_comm(const char *path)
             exit(1);
         }
         gettimeofday(&tv, NULL);
-        printf("MMAP - end:\t%ld.%ld\n", tv.tv_sec, tv.tv_usec); // start time measure
+        printf("MMAP - end:\t%ld.%ld\n", tv.tv_sec, tv.tv_usec); // end time measure
+        close(fd);
+    }
+    return 0;
+}
+
+int pipe_comm(const char *path)
+{
+    int fd = open(path, O_RDONLY);
+    char sendbuf[BUF_SIZE] = {'\0'}, recvbuf[BUF_SIZE] = {'\0'};
+    int pfd[2];
+    struct timeval tv, tv2;
+    int num_send, num_recv;
+    pipe(pfd);
+    if (!fork())
+    {
+        gettimeofday(&tv2, NULL);
+        printf("PIPE - start:\t%ld.%ld\n", tv2.tv_sec, tv2.tv_usec); // start time measure
+        while(1)
+        {
+            num_recv = read(pfd[0], recvbuf, BUF_SIZE);
+            // printf("%d\n", num_recv);
+            if (num_recv == -1)
+            {
+                perror("Error: read");
+                exit(1);
+            }
+            if (strcmp(recvbuf, "end") == 0)
+            {
+                break;
+            }
+            bzero(recvbuf, BUF_SIZE);
+        }
+        exit(0);
+    }
+    else
+    {
+        while(1)
+        {
+            num_send = read(fd, sendbuf, BUF_SIZE);
+            if (num_send == -1)
+            {
+                perror("Error: read");
+                exit(1);
+            }
+            if (num_send == 0)
+            {
+                break;
+            }
+            num_send = write(pfd[1], sendbuf, BUF_SIZE);
+            if (num_send == -1)
+            {
+                perror("Error: write");
+                exit(1);
+            }
+            bzero(sendbuf, BUF_SIZE);
+        }
+        if (write(pfd[1], "end", 4) == -1)
+        {
+            perror("Error: write");
+            exit(1);
+        }
+        wait(NULL);
+        gettimeofday(&tv, NULL);
+        printf("PIPE - end:\t%ld.%ld\n", tv.tv_sec, tv.tv_usec); // end time measure
+        close(pfd[1]);
+        close(pfd[0]);
         close(fd);
     }
     return 0;
@@ -571,6 +637,7 @@ int main()
     UDP_IPv6("data.txt");
     UDS_UDP("data.txt");
     mmap_comm("data.txt");
+    pipe_comm("data.txt");
     printf("SUCCESS!\n");
 
     return 0;
