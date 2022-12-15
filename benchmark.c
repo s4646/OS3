@@ -25,7 +25,6 @@ typedef struct args
 {
     int fd;
     char *buf;
-    pthread_mutex_t lock;
     int finish;
 
 }args;
@@ -637,41 +636,24 @@ int pipe_comm(const char *path)
 }
 
 void *read_data_thread(void *a)
-{
-    char recv[BUF_SIZE], null[BUF_SIZE] = {'\0'};
-    
-    pthread_mutex_lock(&(((args*)a)->lock));
-    
-    if (memcmp(((args*)a)->buf, null, BUF_SIZE) == 0) // if buffer is null dont read
-    {
-        pthread_mutex_unlock(&(((args*)a)->lock));
-        return NULL;    
-    }
-
+{   
     if (memcmp("\nend\n", ((args*)a)->buf, 6) == 0) // end reading contidion
     {
         ((args*)a)->finish = 1;
     }
-    memcpy(recv, ((args*)a)->buf, BUF_SIZE);
-    bzero(((args*)a)->buf, BUF_SIZE);
+    else if (checksum(((args*)a)->buf, 512) != 0)
+    {
+        printf("Error: checksum is not 0!\n");
+        exit(1);
+    }
+    bzero(((args*)a)->buf, 512);
 
-    pthread_mutex_unlock(&(((args*)a)->lock));
     return NULL;
 }
 
 void *send_data_thread(void *a)
 {
-    char null[BUF_SIZE] = {'\0'};
-    
-    pthread_mutex_lock(&(((args*)a)->lock));
-
-    if (memcmp(((args*)a)->buf, null, BUF_SIZE) != 0) // if buffer not null dont write
-    {
-        pthread_mutex_unlock(&(((args*)a)->lock));
-        return NULL;    
-    }
-
-    int num_read = read(((args*)a)->fd, ((args*)a)->buf, BUF_SIZE);
+    int num_read = read(((args*)a)->fd, ((args*)a)->buf, 511);
     if (num_read == -1)
     {
         perror("Error: read");
@@ -682,8 +664,8 @@ void *send_data_thread(void *a)
         ((args*)a)->buf = strcpy(((args*)a)->buf, "\nend\n");
         ((args*)a)->finish = 1;
     }
+    ((args*)a)->buf[511] = checksum(((args*)a)->buf, 511);
 
-    pthread_mutex_unlock(&(((args*)a)->lock));
     return NULL;
 }
 
@@ -691,22 +673,13 @@ int threads(const char *path)
 {
     int fd = open(path, O_RDONLY);
     pthread_t thread1, thread2;
-    char buf[BUF_SIZE] = {'\0'};
-    pthread_mutex_t lock;
+    char buf[512] = {'\0'};
     struct timeval tv;
-    
-    if (pthread_mutex_init(&lock, NULL) != 0)
-    {
-        printf("mutex init has failed\n");
-        exit(1);
-    }
     
     struct args args1, args2;
     args1.fd = fd;
     args1.buf = buf;
     args2.buf = buf;
-    args1.lock = lock;
-    args2.lock = lock;
     args1.finish = 0;
     args2.finish = 0;
 
@@ -718,16 +691,15 @@ int threads(const char *path)
     while (!args2.finish || !args1.finish)
     {
         pthread_create(&thread1, NULL, &send_data_thread, &args1);
-        pthread_create(&thread2, NULL, &read_data_thread, &args2);
-        
         pthread_join(thread1, NULL);
+        
+        pthread_create(&thread2, NULL, &read_data_thread, &args2);
         pthread_join(thread2, NULL);
     }
 
     gettimeofday(&tv, NULL);
     printf("Threads - end:\t\t%ld.%ld\n", tv.tv_sec, tv.tv_usec); // end time measure
 
-    pthread_mutex_destroy(&lock);
     close(fd);
     return 0;
 }
