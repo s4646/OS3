@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/un.h>
+#include <pthread.h>
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -20,7 +21,14 @@
 #define SERVSOCKET "servsocket"
 #define BUF_SIZE 128
 
+typedef struct args
+{
+    int fd;
+    char *buf;
+    pthread_mutex_t lock;
+    int finish;
 
+}args;
 
 char checksum(char *ptr, size_t sz) // https://stackoverflow.com/questions/3463976/c-file-checksum
 {
@@ -541,7 +549,7 @@ int mmap_comm(const char *path) // https://linuxhint.com/using_mmap_function_lin
     if (!fork())
     {
         gettimeofday(&tv2, NULL);
-        printf("MMAP - start:\t%ld.%ld\n", tv2.tv_sec, tv2.tv_usec); // start time measure
+        printf("MMAP - start:\t\t%ld.%ld\n", tv2.tv_sec, tv2.tv_usec); // start time measure
         for (size_t i = 0; i < size; i++)
         {
             file++;
@@ -557,7 +565,7 @@ int mmap_comm(const char *path) // https://linuxhint.com/using_mmap_function_lin
             exit(1);
         }
         gettimeofday(&tv, NULL);
-        printf("MMAP - end:\t%ld.%ld\n", tv.tv_sec, tv.tv_usec); // end time measure
+        printf("MMAP - end:\t\t%ld.%ld\n", tv.tv_sec, tv.tv_usec); // end time measure
         close(fd);
     }
     return 0;
@@ -574,11 +582,10 @@ int pipe_comm(const char *path)
     if (!fork())
     {
         gettimeofday(&tv2, NULL);
-        printf("PIPE - start:\t%ld.%ld\n", tv2.tv_sec, tv2.tv_usec); // start time measure
+        printf("PIPE - start:\t\t%ld.%ld\n", tv2.tv_sec, tv2.tv_usec); // start time measure
         while(1)
         {
             num_recv = read(pfd[0], recvbuf, BUF_SIZE);
-            // printf("%d\n", num_recv);
             if (num_recv == -1)
             {
                 perror("Error: read");
@@ -621,11 +628,93 @@ int pipe_comm(const char *path)
         }
         wait(NULL);
         gettimeofday(&tv, NULL);
-        printf("PIPE - end:\t%ld.%ld\n", tv.tv_sec, tv.tv_usec); // end time measure
+        printf("PIPE - end:\t\t%ld.%ld\n", tv.tv_sec, tv.tv_usec); // end time measure
         close(pfd[1]);
         close(pfd[0]);
         close(fd);
     }
+    return 0;
+}
+
+void *read_data_thread(void *a)
+{
+    char recv[BUFSIZ], done[BUFSIZ] = {'\0'};
+    pthread_mutex_lock(&(((args*)a)->lock));
+    
+    // printf("in read\n");
+    if (memcmp(done, ((args*)a)->buf, BUFSIZ) == 0)
+    {
+        ((args*)a)->finish = 1;
+    }
+    memcpy(recv, ((args*)a)->buf, BUFSIZ);
+    bzero(((args*)a)->buf, BUFSIZ);
+
+    pthread_mutex_unlock(&(((args*)a)->lock));
+    return NULL;
+}
+
+void *send_data_thread(void *a)
+{
+    pthread_mutex_lock(&(((args*)a)->lock));
+
+    // printf("in send\n");
+    int num_read = read(((args*)a)->fd, ((args*)a)->buf, BUFSIZ);
+    if (num_read == -1)
+    {
+        perror("Error: read");
+        exit(1);
+    }
+    if (num_read == 0)
+    {
+        ((args*)a)->finish = 1;
+    }
+
+    pthread_mutex_unlock(&(((args*)a)->lock));
+    return NULL;
+}
+
+int threads(const char *path)
+{
+    int fd = open(path, O_RDONLY);
+    pthread_t thread1, thread2;
+    char buf[BUFSIZ] = {'\0'};
+    pthread_mutex_t lock;
+    struct timeval tv;
+    
+    if (pthread_mutex_init(&lock, NULL) != 0)
+    {
+        printf("mutex init has failed\n");
+        exit(1);
+    }
+    
+    struct args args1, args2;
+    args1.fd = fd;
+    args1.buf = buf;
+    args2.buf = buf;
+    args1.lock = lock;
+    args2.lock = lock;
+    args1.finish = 0;
+    args2.finish = 0;
+
+    
+    gettimeofday(&tv, NULL);
+    printf("Threads - start:\t%ld.%ld\n", tv.tv_sec, tv.tv_usec); // start time measure
+
+    
+    while (!args2.finish || !args1.finish)
+    {
+        pthread_create(&thread1, NULL, &send_data_thread, &args1);
+        pthread_create(&thread2, NULL, &read_data_thread, &args2);
+        
+        pthread_join(thread1, NULL);
+        pthread_join(thread2, NULL);
+    }
+
+    gettimeofday(&tv, NULL);
+    printf("Threads - end:\t\t%ld.%ld\n", tv.tv_sec, tv.tv_usec); // end time measure
+
+    pthread_mutex_destroy(&lock);
+    close(fd);
     return 0;
 }
 
@@ -638,6 +727,7 @@ int main()
     UDS_UDP("data.txt");
     mmap_comm("data.txt");
     pipe_comm("data.txt");
+    threads("data.txt");
     printf("SUCCESS!\n");
 
     return 0;

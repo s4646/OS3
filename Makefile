@@ -9,7 +9,7 @@ run:
 	rm socket clisocket servsocket
 
 benchmark: benchmark.o
-	$(CC) benchmark.o $(FLAGS) -o benchmark
+	$(CC) benchmark.o $(FLAGS) -lpthread -o benchmark
 
 benchmark.o: benchmark.c
 	$(CC) $(FLAGS) -c benchmark.c
