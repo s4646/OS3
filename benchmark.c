@@ -104,7 +104,6 @@ int TCP_IPv4(const char *path)
             if (c != 0) // validate data received
             {
                 printf("Error: checksum is not 0\n");
-                printf("%s\n", recvbuf);
                 exit(1);
             }
             bzero(recvbuf, BUF_SIZE);
@@ -220,7 +219,6 @@ int UDS_TCP(const char *path)
             if (c != 0) // validate data received
             {
                 printf("Error: checksum is not 0\n");
-                printf("%s\n", recvbuf);
                 exit(1);
             }
             bzero(recvbuf, BUF_SIZE);
@@ -336,7 +334,6 @@ int UDP_IPv6(const char *path)
             if (c != 0) // validate data received
             {
                 printf("Error: checksum is not 0\n");
-                printf("%s\n", recvbuf);
                 exit(1);
             }
             bzero(recvbuf, BUF_SIZE);
