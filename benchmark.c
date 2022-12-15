@@ -638,16 +638,22 @@ int pipe_comm(const char *path)
 
 void *read_data_thread(void *a)
 {
-    char recv[BUFSIZ], done[BUFSIZ] = {'\0'};
+    char recv[BUF_SIZE], null[BUF_SIZE] = {'\0'};
+    
     pthread_mutex_lock(&(((args*)a)->lock));
     
-    // printf("in read\n");
-    if (memcmp(done, ((args*)a)->buf, BUFSIZ) == 0)
+    if (memcmp(((args*)a)->buf, null, BUF_SIZE) == 0) // if buffer is null dont read
+    {
+        pthread_mutex_unlock(&(((args*)a)->lock));
+        return NULL;    
+    }
+
+    if (memcmp("\nend\n", ((args*)a)->buf, 6) == 0) // end reading contidion
     {
         ((args*)a)->finish = 1;
     }
-    memcpy(recv, ((args*)a)->buf, BUFSIZ);
-    bzero(((args*)a)->buf, BUFSIZ);
+    memcpy(recv, ((args*)a)->buf, BUF_SIZE);
+    bzero(((args*)a)->buf, BUF_SIZE);
 
     pthread_mutex_unlock(&(((args*)a)->lock));
     return NULL;
@@ -655,17 +661,25 @@ void *read_data_thread(void *a)
 
 void *send_data_thread(void *a)
 {
+    char null[BUF_SIZE] = {'\0'};
+    
     pthread_mutex_lock(&(((args*)a)->lock));
 
-    // printf("in send\n");
-    int num_read = read(((args*)a)->fd, ((args*)a)->buf, BUFSIZ);
+    if (memcmp(((args*)a)->buf, null, BUF_SIZE) != 0) // if buffer not null dont write
+    {
+        pthread_mutex_unlock(&(((args*)a)->lock));
+        return NULL;    
+    }
+
+    int num_read = read(((args*)a)->fd, ((args*)a)->buf, BUF_SIZE);
     if (num_read == -1)
     {
         perror("Error: read");
         exit(1);
     }
-    if (num_read == 0)
+    if (num_read == 0) // end writing condition
     {
+        ((args*)a)->buf = strcpy(((args*)a)->buf, "\nend\n");
         ((args*)a)->finish = 1;
     }
 
@@ -677,7 +691,7 @@ int threads(const char *path)
 {
     int fd = open(path, O_RDONLY);
     pthread_t thread1, thread2;
-    char buf[BUFSIZ] = {'\0'};
+    char buf[BUF_SIZE] = {'\0'};
     pthread_mutex_t lock;
     struct timeval tv;
     
