@@ -594,6 +594,11 @@ int pipe_comm(const char *path)
             {
                 break;
             }
+            if (checksum(recvbuf, BUF_SIZE) != 0)
+            {
+                printf("Error: checksum is not 0!\n");
+                exit(1);
+            }
             bzero(recvbuf, BUF_SIZE);
         }
         exit(0);
@@ -602,7 +607,7 @@ int pipe_comm(const char *path)
     {
         while(1)
         {
-            num_send = read(fd, sendbuf, BUF_SIZE);
+            num_send = read(fd, sendbuf, BUF_SIZE-1);
             if (num_send == -1)
             {
                 perror("Error: read");
@@ -612,6 +617,9 @@ int pipe_comm(const char *path)
             {
                 break;
             }
+
+            sendbuf[BUF_SIZE-1] = checksum(sendbuf, BUF_SIZE-1);
+            
             num_send = write(pfd[1], sendbuf, BUF_SIZE);
             if (num_send == -1)
             {
